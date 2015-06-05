@@ -159,7 +159,7 @@ console.log("Traverse component tree and figure out the data need");
 
 var app = React.createElement(App);
 
-console.log("Store now nows what data each component need");
+console.log("Store now knows what data each component need");
 
 store.componentTraverseDone();
 
