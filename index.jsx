@@ -1,10 +1,17 @@
-var store = (function() {
-  var prefetchedInfo = {};
-  var info = {};
+// Create store
+//
+// Stores responsibilities:
+//
+// - (Pre)fetch data from backend
+// - Cache data
+// - Offline support (in the future)
+//
+var createStore = function() {
+  var dataNeed = {};
 
   return {
     prefetch: function(name, collection, entity, children) {
-      prefetchedInfo[name] = {
+      dataNeed[name] = {
         collection: collection,
         entity: entity,
         childrenNames: children,
@@ -12,27 +19,43 @@ var store = (function() {
         parentName: null // unknown at this point
       };
     },
-    renderDone: function() {
-      _.forEach(prefetchedInfo, function(spec, name) {
+
+    componentTraverseDone: function(clbk) {
+      _.forEach(dataNeed, function(spec, name) {
         spec.children = _.reduce(spec.childrenNames, function(memo, childName) {
-          memo[childName] = prefetchedInfo[childName];
+          memo[childName] = dataNeed[childName];
           memo[childName].parentName = name;
           return memo;
         }, {});
       });
-      prefetchedInfo = _.filter(prefetchedInfo, function(spec) {
+
+      // Leave only the root node to top-level
+      dataNeed = _.filter(dataNeed, function(spec) {
         return spec.parentName === null;
       });
     },
-    load: function() {
-      debugger;
+
+    load: function(clbk) {
+      console.log("Load data according to the component data need");
+      console.log(dataNeed);
+
+      // TODO Load
+      // (Simulate network latency with timeout)
+      setTimeout(clbk, 1000);
     }
   };
-})();
+};
 
+// Create RLY
+//
+// Responsibilities
+//
+// - Wrap all React components
+// - Read the component data need from the metadata
+// - Tell Store to prefetch the needed data
+//
 var createRLY = function(store) {
   var createContainer = function(spec) {
-    debugger;
     var name = spec.name; // for debugging purposes
     var children = spec.children || [];
     var entity = spec.entity;
@@ -43,7 +66,9 @@ var createRLY = function(store) {
 
     return React.createClass({
       render: function() {
-        return <Component />
+        return (
+            <Component />
+        );
       }
     });
   };
@@ -53,17 +78,18 @@ var createRLY = function(store) {
   };
 };
 
+var store = createStore();
 var RLY = createRLY(store);
 
 var UserHeader = RLY.createContainer({
   name: "UserHeader",
-  data: {
+  entity: {
     person: ["firstName", "lastName", "avatarUrl"]
   },
   component: React.createClass({
     render: function() {
       return (
-        <p>User header</p>
+          <p>User header component will be here. It contains the name and avatar of the current user</p>
       );
     }
   })
@@ -99,7 +125,7 @@ var ListingCard = RLY.createContainer({
   component: React.createClass({
     render: function() {
       return (
-          <p>ListingCard</p>
+          <p>ListingCards will be here. It will contain listing title, description, image and author information</p>
       );
     }
   })
@@ -109,6 +135,9 @@ var App = RLY.createContainer({
   name: "App",
   entity: {
     community: {
+      fields: ["id"]
+    },
+    person: {
       fields: ["id"]
     }
   },
@@ -126,6 +155,19 @@ var App = RLY.createContainer({
   })
 });
 
-React.render(<App />, document.getElementById('container'));
-store.renderDone();
-store.load();
+console.log("Traverse component tree and figure out the data need");
+
+var app = React.createElement(App);
+
+console.log("Store now nows what data each component need");
+
+store.componentTraverseDone();
+
+console.log("Now load the initial data");
+
+store.load(function() {
+  console.log("The data is now loaded");
+
+  console.log("Call render for the first time");
+  React.render(app, document.getElementById('container'));
+});
